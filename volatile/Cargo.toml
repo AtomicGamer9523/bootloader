@@ -22,9 +22,12 @@
 # SOFTWARE.
 # 
 
-[unstable]
-build-std = ["core", "compiler_builtins", "alloc"]
-build-std-features = ["compiler-builtins-mem"]
+[package]
+name = "volatile"
+version = "0.4.5"
+edition = "2021"
+authors = ["AtomicGamer9523@github.com"]
 
-[build]
-target = "x86_64-bootloader.json"
+[features]
+# Enable unstable features; requires Rust nightly; might break on compiler updates
+unstable = []

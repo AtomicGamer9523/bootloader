@@ -31,3 +31,10 @@ macro_rules! kernel {
         }
     };
 }
+
+/// Used by std3
+#[doc(hidden)]
+#[cfg(feature = "std3")]
+pub mod std3 {
+    pub extern crate x86_64;
+}

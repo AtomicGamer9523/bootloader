@@ -1,9 +1,5 @@
 #![no_std]
 #![no_main]
-#![feature(llvm_asm)]
-#![feature(lang_items)]
-#![feature(global_asm)]
-
 
 #[cfg(not(target_os = "none"))]
 compile_error!("The bootloader crate must be compiled for the `x86_64-bootloader.json` target");
@@ -11,8 +7,8 @@ compile_error!("The bootloader crate must be compiled for the `x86_64-bootloader
 extern crate rlibc;
 
 use bootloader::bootinfo::{BootInfo, FrameRange};
-use core::convert::TryInto;
-use core::panic::PanicInfo;
+use core::arch::asm;
+use core::{arch::global_asm, convert::TryInto, panic::PanicInfo};
 use core::{mem, slice};
 use fixedvec::alloc_stack;
 use usize_conversions::usize_from;
@@ -43,8 +39,8 @@ global_asm!(include_str!("video_mode/vga_320x200.s"));
 global_asm!(include_str!("video_mode/vga_text_80x25.s"));
 
 unsafe fn context_switch(boot_info: VirtAddr, entry_point: VirtAddr, stack_pointer: VirtAddr) -> ! {
-    llvm_asm!("call $1; ${:private}.spin.${:uid}: jmp ${:private}.spin.${:uid}" ::
-         "{rsp}"(stack_pointer), "r"(entry_point), "{rdi}"(boot_info) :: "intel");
+    asm!("mov rsp, {1}; call {0}; 2: jmp 2b",
+         in(reg) entry_point.as_u64(), in(reg) stack_pointer.as_u64(), in("rdi") boot_info.as_u64());
     ::core::hint::unreachable_unchecked()
 }
 
@@ -89,8 +85,12 @@ extern "C" {
 #[no_mangle]
 pub unsafe extern "C" fn stage_4() -> ! {
     // Set stack segment
-    llvm_asm!("mov bx, 0x0
-          mov ss, bx" ::: "bx" : "intel");
+    asm!(
+        "push rbx
+          mov bx, 0x0
+          mov ss, bx
+          pop rbx"
+    );
 
     let kernel_start = 0x400000;
     let kernel_size = &_kernel_size as *const _ as u64;
@@ -169,7 +169,8 @@ fn bootloader_main(
     enable_nxe_bit();
 
     // Create a recursive page table entry
-    let recursive_index = PageTableIndex::new(level4_entries.get_free_entry().try_into().unwrap());
+    let recursive_index =
+        PageTableIndex::new(level4_entries.get_free_entries(1).try_into().unwrap());
     let mut entry = PageTableEntry::new();
     entry.set_addr(
         p4_physical,
@@ -243,7 +244,7 @@ fn bootloader_main(
         let page: Page = match BOOT_INFO_ADDRESS {
             Some(addr) => Page::containing_address(VirtAddr::new(addr)),
             None => Page::from_page_table_indices(
-                level4_entries.get_free_entry(),
+                level4_entries.get_free_entries(1),
                 PageTableIndex::new(0),
                 PageTableIndex::new(0),
                 PageTableIndex::new(0),
@@ -286,11 +287,10 @@ fn bootloader_main(
 
     let physical_memory_offset = if cfg!(feature = "map_physical_memory") {
         let physical_memory_offset = PHYSICAL_MEMORY_OFFSET.unwrap_or_else(|| {
-            // If offset not manually provided, find a free p4 entry and map memory here.
-            // One level 4 entry spans 2^48/512 bytes (over 500gib) so this should suffice.
-            assert!(max_phys_addr < (1 << 48) / 512);
+            const LEVEL_4_SIZE: u64 = 4096 * 512 * 512 * 512;
+            let level_4_entries = (max_phys_addr + (LEVEL_4_SIZE - 1)) / LEVEL_4_SIZE;
             Page::from_page_table_indices_1gib(
-                level4_entries.get_free_entry(),
+                level4_entries.get_free_entries(level_4_entries),
                 PageTableIndex::new(0),
             )
             .start_address()
@@ -374,12 +374,6 @@ fn enable_write_protect_bit() {
 pub fn panic(info: &PanicInfo) -> ! {
     use core::fmt::Write;
     write!(printer::Printer, "{}", info).unwrap();
-    loop {}
-}
-
-#[lang = "eh_personality"]
-#[no_mangle]
-pub extern "C" fn eh_personality() {
     loop {}
 }
 

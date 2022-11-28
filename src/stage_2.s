@@ -1,21 +1,20 @@
 .section .boot, "awx"
-.intel_syntax noprefix
 .code16
 
 # This stage sets the target operating mode, loads the kernel from disk,
-# creates an e820 memory map, enters protected mode, and jumps to the third stage.
+# creates an e820 memory map, enters protected mode, and jumps to stage 3.
 
 second_stage_start_str: .asciz "Booting (second stage)..."
 kernel_load_failed_str: .asciz "Failed to load kernel from disk"
 
 kernel_load_failed:
-    lea si, [kernel_load_failed_str]
+    mov si, offset kernel_load_failed_str
     call real_mode_println
 kernel_load_failed_spin:
     jmp kernel_load_failed_spin
 
 stage_2:
-    lea si, [second_stage_start_str]
+    mov si, offset second_stage_start_str
     call real_mode_println
 
 set_target_operating_mode:
@@ -32,15 +31,15 @@ set_target_operating_mode:
 
 load_kernel_from_disk:
     # start of memory buffer
-    lea eax, _kernel_buffer
+    mov eax, offset _kernel_buffer
     mov [dap_buffer_addr], ax
 
     # number of disk blocks to load
     mov word ptr [dap_blocks], 1
 
     # number of start block
-    lea eax, _kernel_start_addr
-    lea ebx, _start
+    mov eax, offset _kernel_start_addr
+    mov ebx, offset _start
     sub eax, ebx
     shr eax, 9 # divide by 512 (block size)
     mov [dap_start_lba], eax
@@ -49,13 +48,13 @@ load_kernel_from_disk:
     mov edi, 0x400000
 
     # block count
-    lea ecx, _kernel_size
+    mov ecx, offset _kernel_size
     add ecx, 511 # align up
     shr ecx, 9
 
 load_next_kernel_block_from_disk:
     # load block from disk
-    lea si, dap
+    mov si, offset dap
     mov ah, 0x42
     int 0x13
     jc kernel_load_failed
@@ -96,7 +95,7 @@ enter_protected_mode_again:
     mov cr0, eax
 
     push 0x8
-    lea eax, [stage_3]
+    mov eax, offset stage_3
     push eax
     retf
 

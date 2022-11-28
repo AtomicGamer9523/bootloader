@@ -22,9 +22,11 @@
 # SOFTWARE.
 # 
 
-[unstable]
-build-std = ["core", "compiler_builtins", "alloc"]
-build-std-features = ["compiler-builtins-mem"]
-
-[build]
-target = "x86_64-bootloader.json"
+[package]
+name = "bit_field"
+version = "0.10.0"
+authors = ["AtomicGamer9523@github.com"]
+license = "MIT"
+description = "Simple bit field trait providing get_bit, get_bits, set_bit, and set_bits methods for Rust's integral types."
+repository = "https://github.com/phil-opp/rust-bit-field"
+documentation = "https://docs.rs/bit_field"

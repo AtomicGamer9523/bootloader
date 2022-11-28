@@ -1,5 +1,4 @@
 .section .boot, "awx"
-.intel_syntax noprefix
 .code16
 
 # Original: http://wiki.osdev.org/Detecting_Memory_(x86)#Getting_an_E820_Memory_Map
@@ -52,4 +51,5 @@ do_e820:
 	stc			# "function unsupported" error exit
 	ret
 
+.global mmap_ent
 mmap_ent: .word 0

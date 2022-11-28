@@ -1,8 +1,5 @@
 .section .boot, "awx"
-.intel_syntax noprefix
 .code16
-
-# Text 80x25
 
 config_video_mode:
     mov ah, 0
